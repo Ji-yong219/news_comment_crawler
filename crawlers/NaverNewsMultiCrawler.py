@@ -19,28 +19,66 @@ from tqdm import trange
 
 from utils.util import *
 
-# 기사 링크 수집 메소드
-def crawlLinks(self, search, start_date, end_date, driver_url, chrome_options):
-    self.news_queue = []
-    self.driver = webdriver.Chrome(self.driver_url, chrome_options=self.chrome_options)
-    self.url_page_num = 0
+
+from multiprocessing import Process, Manager, cpu_count
+import numpy as np
+
+def crawlLinks( search, start_date, end_date, driver_url, chrome_options):
+    num_of_cpu = cpu_count()
+
+    manager = Manager()
+    url_list = manager.list()
     
     start_date_ = datetime.date(int(start_date[:4]), int(start_date[4:6]), int(start_date[6:]))
     end_date_ = datetime.date(int(end_date[:4]), int(end_date[4:6]), int(end_date[6:])) + datetime.timedelta(days=1)
-    for date_ in daterange(start_date_, end_date_):
-        self.url_page_num = 1
+
+    date_list = [i for i in daterange(start_date_, end_date_)]
+    date_list = np.array_split(np.array(date_list), num_of_cpu)
+
+    processes = []
+
+
+    for idx in range(num_of_cpu):
+        process = Process(target=crawlLinksProcess,
+            args=(
+                date_list[idx],
+                driver_url,
+                chrome_options,
+                search,
+                url_list
+            )
+        )
+        
+        processes.append(process)
+        process.start()
+        
+    
+    for process in processes:
+        process.join()
+
+    with open(f'result/naver_news/urls_{search}_naver_{start_date}_{end_date}.txt', 'w', encoding='utf8') as f:
+        f.writelines('\n'.join(list(url_list)))
+
+
+# 기사 링크 수집 메소드
+def crawlLinksProcess(date_list, driver_url, chrome_options, search, url_list):
+    driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
+    url_page_num = 0
+    
+    for date_ in date_list:
+        url_page_num = 1
 
         while True:
             date__ = str(date_).replace('-', '.')
             date___ = str(date_).replace('-', '')
-            self.url = f'https://search.naver.com/search.naver?where=news&sm=tab_pge&query={search}&sort=2&photo=0&field=0&pd=3&ds={date__}&de={date__}&mynews=0&office_type=0&office_section_code=0&news_office_checked=&nso=so:r,p:from{date___}to{date___},a:all&start={self.url_page_num}'
+            url = f'https://search.naver.com/search.naver?where=news&sm=tab_pge&query={search}&sort=2&photo=0&field=0&pd=3&ds={date__}&de={date__}&mynews=0&office_type=0&office_section_code=0&news_office_checked=&nso=so:r,p:from{date___}to{date___},a:all&start={url_page_num}'
             
                 
-            print(f"크롤링시작 URL:{self.url}")
-            self.driver.get(self.url)
+            print(f"크롤링시작 URL:{url}")
+            driver.get(url)
 
             try:
-                element = WebDriverWait(self.driver, 1).until(
+                element = WebDriverWait(driver, 1).until(
                     EC.presence_of_element_located((By.XPATH, '//*[@id="main_pack"]/div[2]'))
                     
                     # class = 'api_noresult_wrap'
@@ -53,12 +91,12 @@ def crawlLinks(self, search, start_date, end_date, driver_url, chrome_options):
 
             div, news = None, None
 
-            div = self.driver.find_element_by_xpath('//*[@id="main_pack"]/div[2]')
+            div = driver.find_element_by_xpath('//*[@id="main_pack"]/div[2]')
 
             if div.get_attribute('class') == 'api_noresult_wrap':
                 break
 
-            div = self.driver.find_element_by_xpath('//*[@id="main_pack"]/section/div/div[2]/ul')
+            div = driver.find_element_by_xpath('//*[@id="main_pack"]/section/div/div[2]/ul')
 
             news = div.find_elements_by_css_selector('a[class="info"]')
 
@@ -74,7 +112,7 @@ def crawlLinks(self, search, start_date, end_date, driver_url, chrome_options):
 
                 link = link.replace('\n', '')
                 # if link.startswith("https://news.naver.com/main/") and link not in self.news_queue:
-                if news[i].text == '네이버뉴스' and link not in self.news_queue:
+                if news[i].text == '네이버뉴스' and link not in url_list:
                     print(f'link : {link}')
                     try:
                         pass
@@ -84,36 +122,66 @@ def crawlLinks(self, search, start_date, end_date, driver_url, chrome_options):
 
                     else:
                         link = link.replace("?f=o", "")
-                        self.news_queue.append(link)
+                        url_list.append(link)
 
-            self.url_page_num += 10
+            url_page_num += 10
 
-    with open(f'result/naver_news/urls_{search}_naver_{start_date}_{end_date}.json.txt', 'w', encoding='utf8') as f:
-        f.writelines('\n'.join(self.news_queue))
+    driver.close()
 
-    self.news_queue = []
-    self.driver.close()
 
-def crawlNews(self, search, start_date, end_date, driver_url, chrome_options):
-    self.news_queue = []
-    news_dic = {}
+def crawlNews( search, start_date, end_date, driver_url, chrome_options):
+    num_of_cpu = cpu_count()
 
-    with open(f'result/naver_news/urls_{search}_naver_{start_date}_{end_date}.json.txt', 'r', encoding='utf8', newline='\n') as f:
+    manager = Manager()
+    news_dic = manager.dict()
+
+    news_queue = []
+
+
+    with open(f'result/naver_news/urls_{search}_naver_{start_date}_{end_date}.txt', 'r', encoding='utf8', newline='\n') as f:
         for row in f.readlines():
             row = row.replace('\n', '').replace('\r', '')
             news_queue.append(row)
 
-    driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
     
+    title_list = np.array_split(np.array(news_queue), num_of_cpu)
     
+    processes = []
+    
+    for idx in range(num_of_cpu):
+        process = Process(target=crawlNewsProcess,
+            args=(
+                idx,
+                driver_url,
+                chrome_options,
+                title_list[idx],
+                news_dic
+            )
+        )
+        
+        processes.append(process)
+        process.start()
+        
+    
+    for process in processes:
+        process.join()
+        
+    
+    with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json', 'w', encoding='utf8') as f:
+        json.dump(dict(news_dic), f, indent=4, sort_keys=True, ensure_ascii=False)
 
-    for url in news_queue:
+
+
+def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic):
+    driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
+
+    for ii, url in enumerate(news_url_list, 1):
         count = 0
-        print(f"네이버뉴스 댓글 크롤링 시작 :{url}")
+        print(f"{idx+1}번 프로세스 네이버뉴스 댓글 크롤링 시작 :{url}\t{ii}/{len(news_url_list)}")
 
         reply_texts = []
 
-        self.driver.get(url)
+        driver.get(url)
 
         try:
             element = WebDriverWait(driver, 1).until(
@@ -133,15 +201,23 @@ def crawlNews(self, search, start_date, end_date, driver_url, chrome_options):
             continue
 
 
-        # date = self.driver.find_element_by_xpath('//*[@id="main_content"]/div[1]/div[3]/div/span').text[:10].strip().replace('.', '')
         date = driver.find_element_by_css_selector('#main_content span[class="t11"]').text[:10].strip().replace('.', '')
         if date not in news_dic.keys():
             news_dic[date] = []
 
         
         # all_comments_mode = div.find_element_by_xpath('//*[@id="cbox_module_wai_u_cbox_sort_option_tab2"]')
-        all_comments_mode = WebDriverWait(div, 2).until(EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module_wai_u_cbox_sort_option_tab2')) )
-        all_comments_mode.click()
+        
+        try:
+            all_comments_mode = WebDriverWait(div, 2).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module_wai_u_cbox_sort_option_tab2')) 
+            )
+            all_comments_mode.click()
+
+        except TimeoutException:
+            print("타임아웃")
+            
+            pass
 
         safe_bot_mode1 = div.find_element_by_xpath('//*[@id="cbox_module"]/div[2]/div[7]/a')
         safe_bot_mode1.click()
@@ -152,11 +228,11 @@ def crawlNews(self, search, start_date, end_date, driver_url, chrome_options):
 
         while True:
             try:
-                element = WebDriverWait(self.driver, 2).until(
+                element = WebDriverWait(driver, 2).until(
                     EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module"]/div[2]/div[9]/a')) 
                 )
                 
-                more_btn = self.driver.find_element_by_xpath('//*[@id="cbox_module"]/div[2]/div[9]/a')
+                more_btn = driver.find_element_by_xpath('//*[@id="cbox_module"]/div[2]/div[9]/a')
                 print("댓글 더보기 클릭")
                 more_btn.click()
 
@@ -175,7 +251,7 @@ def crawlNews(self, search, start_date, end_date, driver_url, chrome_options):
 
 
         try:
-            element = WebDriverWait(self.driver, 1).until(
+            element = WebDriverWait(driver, 1).until(
                 EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module"]/div[2]/div[2]/ul/li[1]/span')) 
             )
 
@@ -184,7 +260,7 @@ def crawlNews(self, search, start_date, end_date, driver_url, chrome_options):
             
             break
 
-        div = self.driver.find_element_by_xpath('//*[@id="cbox_module_wai_u_cbox_content_wrap_tabpanel"]')
+        div = driver.find_element_by_xpath('//*[@id="cbox_module_wai_u_cbox_content_wrap_tabpanel"]')
     
         # comments = div.find_elements_by_xpath('//li[**starts-with(id,"comment")**]')
         comments = div.find_elements_by_css_selector('ul>li')
@@ -281,7 +357,4 @@ def crawlNews(self, search, start_date, end_date, driver_url, chrome_options):
             }
         )
 
-    self.driver.close()
-    
-    with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json.txt', 'w', encoding='utf8') as f:
-        json.dump(news_dic, f, indent=4, sort_keys=True, ensure_ascii=False)
+    driver.close()

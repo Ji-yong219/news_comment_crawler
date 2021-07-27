@@ -126,11 +126,11 @@ if __name__ == "__main__":
     # naver_crawler.crawlNews(search, start_date, end_date) # 뉴스 크롤링(async+grequest+bs4)
 
 
-    # daumCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
+    daumCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
     daumCrawlNews(search, start_date, end_date, driver_url, chrome_options)
     
-    # naverCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
-    # naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
+    naverCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
+    naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
 
 
 
