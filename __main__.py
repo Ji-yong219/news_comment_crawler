@@ -89,18 +89,9 @@ def info_time(dic, us_news, kr_news):
     # dataframe.to_csv('Task2.csv', encoding='cp949')
 
 
-def get_clean_words(text, stopwords):
-    clean_words = [] 
-    for word in nltk.tokenize.word_tokenize(text): 
-        if word not in stopwords: #불용어 제거
-            clean_words.append(word)
-
-    return clean_words
-
-
 if __name__ == "__main__":
     # 크롬 드라이버 링크
-    driver_url = 'D:\\chromedriver.exe'
+    driver_url = './chromedriver.exe'
 
     chrome_options = webdriver.ChromeOptions()
     # chrome_options.add_argument('--headless')
@@ -113,7 +104,8 @@ if __name__ == "__main__":
     # kr은 requests로 동기식, us는 grequests와 async로 비동기식 (kr은 비동기가 안먹힘(다음뉴스 500 오류))
 
     search = "주한미군"
-    start_date = "20200601"
+    # start_date = "20200601"
+    start_date = "20210528"
     end_date = "20210601"
 
 

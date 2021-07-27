@@ -76,8 +76,6 @@ class DaumCrawler(Crawler):
 
         with open(f'result/daum_news/urls_{search}_daum_{start_date}_{end_date}.json.txt', 'w', encoding='utf8') as f:
             f.writelines('\n'.join(list(url_list)))
-
-        url_list = []
             
     def crawlLinksProcess(self, date_list, driver_url, chrome_options, search, url_list):
         driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
@@ -89,7 +87,7 @@ class DaumCrawler(Crawler):
                 date__ = str(date_).replace('-', '')
                 url = f'https://search.daum.net/search?w=news&q={search}&DA=STC&sd={date__}000000&ed={date__}235959&period=u&spacing=0&sort=sort&p={url_page_num}'
                     
-                print(f"크롤링시작 URL:{url}")
+                print(f"다음 링크 크롤링시작 URL:{url}")
                 driver.get(url)
 
                 try:
@@ -140,10 +138,11 @@ class DaumCrawler(Crawler):
 
                 if now_count > whole_count:
                     break
-
+            
                 url_page_num += 1
-
+                
         driver.close()
+        return
 
     def crawlNews(self, search, start_date, end_date):
         num_of_cpu = cpu_count()
