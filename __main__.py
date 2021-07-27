@@ -11,8 +11,10 @@ from eunjeon import Mecab
 mcb = Mecab()
 morphology_analyzer = mcb
 
-from crawlers.DaumNewsCrawler import DaumCrawler
-from crawlers.NaverNewsCrawler import NaverCrawler
+# from crawlers.DaumNewsCrawler import DaumCrawler
+# from crawlers.NaverNewsCrawler import NaverCrawler
+from crawlers.DaumNewsMultiCrawler import crawlLinks as daumCrawlLinks, crawlNews as daumCrawlNews
+from crawlers.NaverNewsMultiCrawler import crawlLinks as naverCrawlLinks, crawlNews as naverCrawlNews
 
 from utils.util import *
 
@@ -104,23 +106,33 @@ if __name__ == "__main__":
     # kr은 requests로 동기식, us는 grequests와 async로 비동기식 (kr은 비동기가 안먹힘(다음뉴스 500 오류))
 
     search = "주한미군"
-    # start_date = "20200601"
-    start_date = "20210528"
+    start_date = "20200601"
+    # start_date = "20210528"
     end_date = "20210601"
 
 
     
     search = search.replace(' ', '+')
 
-    # 크롤러 객체 생성
-    daum_crawler = DaumCrawler(driver_url, chrome_options)
-    naver_crawler = NaverCrawler(driver_url, chrome_options)
 
-    daum_crawler.crawlLinks(search, start_date, end_date) # 링크 크롤링(selenium)
-    daum_crawler.crawlNews(search, start_date, end_date) # 뉴스 크롤링(async+grequest+bs4)
+    # # 크롤러 객체 생성
+    # daum_crawler = DaumCrawler(driver_url, chrome_options)
+    # naver_crawler = NaverCrawler(driver_url, chrome_options)
+
+    # daum_crawler.crawlLinks(search, start_date, end_date) # 링크 크롤링(selenium)
+    # daum_crawler.crawlNews(search, start_date, end_date) # 뉴스 크롤링(async+grequest+bs4)
     
-    naver_crawler.crawlLinks(search, start_date, end_date) # 링크 크롤링(selenium)
-    naver_crawler.crawlNews(search, start_date, end_date) # 뉴스 크롤링(async+grequest+bs4)
+    # naver_crawler.crawlLinks(search, start_date, end_date) # 링크 크롤링(selenium)
+    # naver_crawler.crawlNews(search, start_date, end_date) # 뉴스 크롤링(async+grequest+bs4)
+
+
+    # daumCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
+    daumCrawlNews(search, start_date, end_date, driver_url, chrome_options)
+    
+    # naverCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
+    # naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
+
+
 
     # dic = {}
 

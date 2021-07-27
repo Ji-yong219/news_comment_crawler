@@ -3,7 +3,7 @@
 # Web crawling program for Daum News
 # Author : Ji-yong219
 # Project Start:: 2021.07.24
-# Last Modified from Ji-yong 2021.07.24
+# Last Modified from Ji-yong 2021.07.27
 #
 
 from selenium import webdriver
@@ -43,44 +43,14 @@ class DaumCrawler(Crawler):
 
         manager = Manager()
         url_list = manager.list()
-
-
-        self.news_queue = []
-        self.url_page_num = 0
         
         start_date_ = datetime.date(int(start_date[:4]), int(start_date[4:6]), int(start_date[6:]))
         end_date_ = datetime.date(int(end_date[:4]), int(end_date[4:6]), int(end_date[6:])) + datetime.timedelta(days=1)
 
-        date_list = [i for i in daterange(start_date_, end_date_)]
-        date_list = np.array_split(np.array(date_list), num_of_cpu)
 
-        processes = []
+        driver = webdriver.Chrome(self.driver_url, chrome_options=self.chrome_options)
 
-        for idx in range(num_of_cpu):
-            process = Process(target=self.crawlLinksProcess,
-                args=(
-                    date_list[idx],
-                    self.driver_url,
-                    self.chrome_options,
-                    search,
-                    url_list
-                )
-            )
-            
-            processes.append(process)
-            process.start()
-            
-        
-        for process in processes:
-            process.join()
-
-        with open(f'result/daum_news/urls_{search}_daum_{start_date}_{end_date}.json.txt', 'w', encoding='utf8') as f:
-            f.writelines('\n'.join(list(url_list)))
-            
-    def crawlLinksProcess(self, date_list, driver_url, chrome_options, search, url_list):
-        driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
-
-        for date_ in date_list:
+        for date_ in daterange(start_date_, end_date_):
             url_page_num = 1
 
             while True:
@@ -91,7 +61,7 @@ class DaumCrawler(Crawler):
                 driver.get(url)
 
                 try:
-                    element = WebDriverWait(driver, 1).until(
+                    element = WebDriverWait(self.driver, 1).until(
                         EC.presence_of_element_located((By.XPATH, '//*[@id="newsColl"]/div[1]/ul')) 
                     )
 
@@ -130,7 +100,7 @@ class DaumCrawler(Crawler):
                             url_list.append(link)
 
 
-                result_count = driver.find_element_by_xpath('//*[@id="resultCntArea"]')
+                result_count = self.driver.find_element_by_xpath('//*[@id="resultCntArea"]')
                 result_count = result_count.text.split(' ')[0]
                 now_count, whole_count = [int(i) for i in result_count.split('-')]
 
@@ -141,8 +111,10 @@ class DaumCrawler(Crawler):
             
                 url_page_num += 1
                 
-        driver.close()
-        return
+        self.driver.close()
+
+        with open(f'result/daum_news/urls_{search}_daum_{start_date}_{end_date}.json.txt', 'w', encoding='utf8') as f:
+            f.writelines('\n'.join(list(url_list)))
 
     def crawlNews(self, search, start_date, end_date):
         num_of_cpu = cpu_count()
@@ -157,49 +129,13 @@ class DaumCrawler(Crawler):
             for row in f.readlines():
                 row = row.replace('\n', '').replace('\r', '')
                 self.news_queue.append(row)
+        
 
-        
-        title_list = np.array_split(np.array(self.news_queue), num_of_cpu)
-        
-        processes = []
-        result = manager.Queue()
-        
-        for idx in range(num_of_cpu):
-            process = Process(target=self.crawlNewsProcess,
-                args=(
-                    idx,
-                    self.driver_url,
-                    self.chrome_options,
-                    title_list[idx],
-                    news_dic
-                )
-            )
-            
-            processes.append(process)
-            process.start()
-            
-        
-        for process in processes:
-            process.join()
-            
-        # while True:
-        #     if result.empty():
-        #         break
-                
-            # data = result.get()
-            
-            # news_dic.update(data)
-            # result_dic[data[0]]['title'] = data[1]
-        
-        with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json.txt', 'w', encoding='utf8') as f:
-            json.dump(dict(news_dic), f, indent=4, sort_keys=True, ensure_ascii=False)
+        driver = webdriver.Chrome(self.driver_url, chrome_options=self.chrome_options)
 
-    def crawlNewsProcess(self, idx, driver_url, chrome_options, news_url_list, news_dic):
-        driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
-
-        for url in news_url_list:
+        for url in self.news_queue:
             count = 0
-            print(f"{idx} 다음뉴스 댓글 크롤링 시작 :{url}")
+            print(f"다음뉴스 댓글 크롤링 시작 :{url}")
 
             reply_texts = []
 
@@ -371,4 +307,6 @@ class DaumCrawler(Crawler):
                 }
             )
 
-        driver.close()
+        self.driver.close()
+        with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json.txt', 'w', encoding='utf8') as f:
+            json.dump(dict(news_dic), f, indent=4, sort_keys=True, ensure_ascii=False)

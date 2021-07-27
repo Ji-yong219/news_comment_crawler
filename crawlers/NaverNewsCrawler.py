@@ -3,7 +3,7 @@
 # Web crawling program for Naver News
 # Author : Ji-yong219
 # Project Start:: 2021.07.24
-# Last Modified from Ji-yong 2021.07.24
+# Last Modified from Ji-yong 2021.07.27
 #
 
 from selenium import webdriver
