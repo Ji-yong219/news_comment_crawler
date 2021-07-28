@@ -133,6 +133,14 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
     manager = Manager()
     news_dic = manager.dict()
 
+    start_date_ = datetime.date(int(start_date[:4]), int(start_date[4:6]), int(start_date[6:]))
+    end_date_ = datetime.date(int(end_date[:4]), int(end_date[4:6]), int(end_date[6:])) + datetime.timedelta(days=1)
+
+    date_list = [str(i).replace('-', '')[0:8] for i in daterange(start_date_, end_date_)]
+
+    for date in date_list:
+        news_dic[date] = manager.dict()
+
     news_queue = []
 
 
@@ -164,7 +172,12 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
     for process in processes:
         process.join()
         
-    
+    for key in news_dic.keys():
+        if news_dic[key] != {}:
+            news_dic[key] = dict(news_dic[key])
+        else:
+            news_dic[key] = None
+
     with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json', 'w', encoding='utf8') as f:
         json.dump(dict(news_dic), f, indent=4, sort_keys=True, ensure_ascii=False)
 
@@ -199,8 +212,8 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic):
 
         index = url.index("/v/") +3
         date = url[index:index+17]
-        if date[0:8] not in news_dic.keys():
-            news_dic[date[0:8]] = []
+        # if date[0:8] not in news_dic.keys():
+        #     news_dic[date[0:8]] = []
 
         
         try:
@@ -345,7 +358,8 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic):
         #     print(i)
         # print(f'수집한 댓글 : {len(reply_texts)}')
         
-        news_dic[date[0:8]].append(
+
+        news_dic[date[0:8]].update(
             {
                 url: {
                     'comments': reply_texts,
@@ -355,3 +369,4 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic):
         )
 
     driver.close()
+    return
