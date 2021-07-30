@@ -149,42 +149,60 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
             row = row.replace('\n', '').replace('\r', '')
             news_queue.append(row)
 
-    
-    # title_list = np.array_split(np.array(news_queue), num_of_cpu)
-    title_list = manager.Queue()
+    news_queue_with_month = {}
 
-    [title_list.put(i) for i in news_queue]
-    
-    processes = []
-    
-    for idx in range(num_of_cpu):
-        process = Process(target=crawlNewsProcess,
-            args=(
-                idx,
-                driver_url,
-                chrome_options,
-                title_list,
-                news_dic
-            )
-        )
-        
-        processes.append(process)
-        process.start()
-        
-    
-    for process in processes:
-        process.join()
-        
-    for key in news_dic.keys():
-        if news_dic[key] != {}:
-            news_dic[key] = dict(news_dic[key])
+    for i in sorted(news_queue):
+        month = i[26:32]
+        if month in news_queue_with_month.keys():
+            news_queue_with_month[month].append(i)
         else:
-            news_dic[key] = None
+            news_queue_with_month[month] = []
 
-    with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json', 'w', encoding='utf8') as f:
-        json.dump(dict(news_dic), f, indent=4, sort_keys=True, ensure_ascii=False)
+    split_index_count = 10
 
-def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic):
+    for i in news_queue_with_month.keys():
+        
+        news_queue_with_month[i] = list(np.array_split(np.array(news_queue_with_month[i]), split_index_count))
+
+        for idx2, j in enumerate(news_queue_with_month[i], 1):
+            # title_list = np.array_split(np.array(news_queue), num_of_cpu)
+            title_list = manager.Queue()
+
+            [title_list.put(ii) for ii in j]
+            
+            processes = []
+            
+            for idx in range(num_of_cpu):
+                process = Process(target=crawlNewsProcess,
+                    args=(
+                        idx,
+                        driver_url,
+                        chrome_options,
+                        title_list,
+                        news_dic,
+                        i,
+                        idx2,
+                        split_index_count
+                    )
+                )
+                
+                processes.append(process)
+                process.start()
+                
+            
+            for process in processes:
+                process.join()
+                
+            for key in news_dic.keys():
+                if news_dic[key] != {}:
+                    news_dic[key] = dict(news_dic[key])
+                else:
+                    news_dic[key] = None
+
+            with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}__{i}_{idx2}.json', 'w', encoding='utf8') as f:
+                json.dump(dict(news_dic), f, indent=4, sort_keys=True, ensure_ascii=False)
+
+def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic, split_date, now_split_index, split_index_count):
     driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
     count_ = 0
     # for ii, url in enumerate(news_url_list, 1):
@@ -199,7 +217,7 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic):
             count = 0
             count_ += 1
             # print(f"{idx+1}번 프로세스 다음뉴스 댓글 크롤링 시작 :{url}\t{ii}/{len(news_url_list)}")
-            print(f"{idx+1}번 프로세스 다음뉴스 댓글 크롤링 시작 :{url}\t{count_}/{news_url_list.qsize()}개남음")
+            print(f"{idx+1}번 프로세스 다음뉴스 댓글 크롤링 시작 :{url}\t{count_}/{news_url_list.qsize()}개남음\t--{split_date} 중 {now_split_index}/{split_index_count}")
 
             reply_texts = []
 

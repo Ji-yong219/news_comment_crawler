@@ -132,6 +132,7 @@ if __name__ == "__main__":
     # naverCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
     # naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
 
+    exit()
 
     dic = {}
     dic2 = {}
@@ -150,11 +151,10 @@ if __name__ == "__main__":
     all = 0
     for mon in dic2.keys():
         count = 0
-        for date in dic2[mon]:
-            for dic3 in dic2[mon]:
-                for url, contain in dic3.items():
-                    for comment in contain['comments']:
-                        count += 1
+        for dic3 in dic2[mon]:
+            for url, contain in dic3.items():
+                for comment in contain['comments']:
+                    count += 1
         all += count
         print(f'{mon} : {count}')
     print(f'all : {all}')
