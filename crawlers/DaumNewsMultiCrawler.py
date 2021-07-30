@@ -131,15 +131,15 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
     num_of_cpu = cpu_count()
 
     manager = Manager()
-    news_dic = manager.dict()
+    # news_dic = manager.dict()
 
-    start_date_ = datetime.date(int(start_date[:4]), int(start_date[4:6]), int(start_date[6:]))
-    end_date_ = datetime.date(int(end_date[:4]), int(end_date[4:6]), int(end_date[6:])) + datetime.timedelta(days=1)
+    # start_date_ = datetime.date(int(start_date[:4]), int(start_date[4:6]), int(start_date[6:]))
+    # end_date_ = datetime.date(int(end_date[:4]), int(end_date[4:6]), int(end_date[6:])) + datetime.timedelta(days=1)
 
-    date_list = [str(i).replace('-', '')[0:8] for i in daterange(start_date_, end_date_)]
+    # date_list = [str(i).replace('-', '')[0:8] for i in daterange(start_date_, end_date_)]
 
-    for date in date_list:
-        news_dic[date] = manager.dict()
+    # for date in date_list:
+    #     news_dic[date] = manager.dict()
 
     news_queue = []
 
@@ -163,8 +163,16 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
     for i in news_queue_with_month.keys():
         
         news_queue_with_month[i] = list(np.array_split(np.array(news_queue_with_month[i]), split_index_count))
+        
+
+        news_dic = manager.dict()
+
 
         for idx2, j in enumerate(news_queue_with_month[i], 1):
+            for jj in j:
+                if jj[26:34] not in news_dic.keys():
+                    news_dic[jj[26:34]] = manager.dict()
+
             # title_list = np.array_split(np.array(news_queue), num_of_cpu)
             title_list = manager.Queue()
 
@@ -199,8 +207,8 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
                 else:
                     news_dic[key] = None
 
-            with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}__{i}_{idx2}.json', 'w', encoding='utf8') as f:
-                json.dump(dict(news_dic), f, indent=4, sort_keys=True, ensure_ascii=False)
+        with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}__{i}.json', 'w', encoding='utf8') as f:
+            json.dump(dict(news_dic), f, indent=4, sort_keys=True, ensure_ascii=False)
 
 def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic, split_date, now_split_index, split_index_count):
     driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
