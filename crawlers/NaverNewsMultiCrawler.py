@@ -57,7 +57,7 @@ def crawlLinks( search, start_date, end_date, driver_url, chrome_options):
         process.join()
 
     with open(f'result/naver_news/urls_{search}_naver_{start_date}_{end_date}.txt', 'w', encoding='utf8') as f:
-        f.writelines('\n'.join(list(url_list)))
+        f.writelines('\n'.join(list(set(list(url_list)))))
 
 
 # 기사 링크 수집 메소드
@@ -126,7 +126,8 @@ def crawlLinksProcess(date_list, driver_url, chrome_options, search, url_list):
 
             url_page_num += 10
 
-    driver.close()
+    driver.quit()
+    return
 
 
 def crawlNews( search, start_date, end_date, driver_url, chrome_options):
@@ -198,14 +199,14 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic):
         driver.get(url)
 
         try:
-            element = WebDriverWait(driver, 1).until(
+            element = WebDriverWait(driver, 2).until(
                 EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module"]/div[2]/div[2]/ul/li[1]/span')) 
             )
 
         except TimeoutException:
             print("타임아웃")
             
-            break
+            continue
 
         div = driver.find_element_by_xpath('//*[@id="cbox_module_wai_u_cbox_content_wrap_tabpanel"]')
 
@@ -340,21 +341,21 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic):
                 replys = []
                 try:
                     replys = WebDriverWait(reply, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , f'li[class="u_cbox_comment"]')))
+
+                    for reply in replys:
+                        try:
+                            text = WebDriverWait(reply, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , 'span[class="u_cbox_contents"] > p'))).text
+                            if text != "작성자에 의해 삭제된 댓글입니다.":
+                                reply_texts.append( text )
+                                count+=1
+                                count2+=1
+                                print(f"수집한 댓글 : {count}개\t{reply_count}개 중 {count2}개 수집")
+
+                        except:
+                            print("답글 못가져와서 패스")
+                            continue
                 except:
                     pass
-
-                for reply in replys:
-                    try:
-                        text = WebDriverWait(reply, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , 'span[class="u_cbox_contents"] > p'))).text
-                        if text != "작성자에 의해 삭제된 댓글입니다.":
-                            reply_texts.append( text )
-                            count+=1
-                            count2+=1
-                            print(f"수집한 댓글 : {count}개\t{reply_count}개 중 {count2}개 수집")
-
-                    except:
-                        print("답글 못가져와서 패스")
-                        continue
 
                 
                 # reply_btn.send_keys(Keys.ENTER)
@@ -371,5 +372,5 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic):
             }
         )
 
-    driver.close()
+    driver.quit()
     return

@@ -58,7 +58,7 @@ def crawlLinks( search, start_date, end_date, driver_url, chrome_options):
         process.join()
 
     with open(f'result/daum_news/urls_{search}_daum_{start_date}_{end_date}.txt', 'w', encoding='utf8') as f:
-        f.writelines('\n'.join(list(url_list)))
+        f.writelines('\n'.join(list(set(list(url_list)))))
         
 def crawlLinksProcess( date_list, driver_url, chrome_options, search, url_list):
     driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
@@ -124,7 +124,7 @@ def crawlLinksProcess( date_list, driver_url, chrome_options, search, url_list):
         
             url_page_num += 1
             
-    driver.close()
+    driver.quit()
     return
 
 def crawlNews( search, start_date, end_date, driver_url, chrome_options):
@@ -150,7 +150,10 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
             news_queue.append(row)
 
     
-    title_list = np.array_split(np.array(news_queue), num_of_cpu)
+    # title_list = np.array_split(np.array(news_queue), num_of_cpu)
+    title_list = manager.Queue()
+
+    [title_list.put(i) for i in news_queue]
     
     processes = []
     
@@ -160,7 +163,7 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
                 idx,
                 driver_url,
                 chrome_options,
-                title_list[idx],
+                title_list,
                 news_dic
             )
         )
@@ -183,190 +186,205 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
 
 def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic):
     driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
+    count_ = 0
+    # for ii, url in enumerate(news_url_list, 1):
 
-    for ii, url in enumerate(news_url_list, 1):
-        count = 0
-        print(f"{idx+1}번 프로세스 다음뉴스 댓글 크롤링 시작 :{url}\t{ii}/{len(news_url_list)}")
-
-        reply_texts = []
-
-        driver.get(url)
-
+    while True:
         try:
-            element = WebDriverWait(driver, 1).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="alex-header"]/em')) 
-            )
+            if news_url_list.empty():
+                break
+                
+            url = news_url_list.get()
 
-        except TimeoutException:
-            print("타임아웃")
-            
-            break
+            count = 0
+            count_ += 1
+            # print(f"{idx+1}번 프로세스 다음뉴스 댓글 크롤링 시작 :{url}\t{ii}/{len(news_url_list)}")
+            print(f"{idx+1}번 프로세스 다음뉴스 댓글 크롤링 시작 :{url}\t{count_}/{news_url_list.qsize()}개남음")
 
-        div = driver.find_element_by_xpath('//*[@id="alex-area"]')
+            reply_texts = []
 
-        comment_count = driver.find_element_by_xpath('//*[@id="alex-header"]/em')
+            driver.get(url)
 
-        if comment_count == '0':
-            continue
-
-
-        index = url.index("/v/") +3
-        date = url[index:index+17]
-        # if date[0:8] not in news_dic.keys():
-        #     news_dic[date[0:8]] = []
-
-        
-        try:
-            element = WebDriverWait(driver, 2).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="alex-area"]/div/div/div/div[3]/ul[1]/li[3]/button')) 
-            )
-            
-            all_comments_mode = div.find_element_by_xpath('//*[@id="alex-area"]/div/div/div/div[3]/ul[1]/li[3]/button')
-            all_comments_mode.send_keys(Keys.ENTER)
-
-        except TimeoutException:
-            # print("타임아웃")
-            pass
-
-        try:
-            element = WebDriverWait(driver, 2).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="alex-area"]/div/div/div/div[3]/div[1]/button')) 
-            )
-            
-            safe_bot_mode1 = div.find_element_by_xpath('//*[@id="alex-area"]/div/div/div/div[3]/div[1]/button')
-            safe_bot_mode1.click()
-            safe_bot_mode2 = div.find_element_by_xpath('//*[@id="alex-area"]/div/div/div[2]/div[2]/div/div[2]/dl/dd/button')
-            safe_bot_mode2.click()
-            safe_bot_mode3 = div.find_element_by_xpath('//*[@id="alex-area"]/div/div/div[2]/div[2]/div/a')
-            safe_bot_mode3.click()
-
-        except TimeoutException:
-            # print("타임아웃")
-            pass
-
-
-
-        while True:
             try:
                 element = WebDriverWait(driver, 2).until(
-                    EC.presence_of_element_located((By.XPATH, '//*[@id="alex-area"]/div/div/div/div[3]/div[3]/button')) 
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="alex-header"]/em')) 
                 )
 
             except TimeoutException:
-                print("more 버튼 없음 타임아웃")
+                print("타임아웃")
                 
-                break
-
-            
-            more_btn = div.find_element_by_xpath('//*[@id="alex-area"]/div/div/div/div[3]/div[3]/button')
-            # print("댓글 더보기 클릭")
-            more_btn.click()
-
-    
-        # comments = div.find_elements_by_xpath('//li[**starts-with(id,"comment")**]')
-        comments = div.find_elements_by_css_selector('li')
-        reply_count = 0
-
-        for i in range(len(comments)):
-            comment = comments[i]
-            this_id = comment.get_attribute('id')
-
-            if not this_id.startswith('comment'):
                 continue
 
-            is_exists_reply = True
+            div = driver.find_element_by_xpath('//*[@id="alex-area"]')
 
+            comment_count = driver.find_element_by_xpath('//*[@id="alex-header"]/em')
+
+            if comment_count == '0':
+                continue
+
+
+            index = url.index("/v/") +3
+            date = url[index:index+17]
+            # if date[0:8] not in news_dic.keys():
+            #     news_dic[date[0:8]] = []
+
+            
             try:
-                element = WebDriverWait(driver, 1).until(
-                    EC.presence_of_element_located((By.XPATH, f'//*[@id="{this_id}"]/div/div/span[1]/button/span')) 
+                element = WebDriverWait(driver, 2).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="alex-area"]/div/div/div/div[3]/ul[1]/li[3]/button')) 
                 )
-                reply_count = element.text
-                if element.text == "답글 작성":
-                    is_exists_reply = False
+                
+                all_comments_mode = div.find_element_by_xpath('//*[@id="alex-area"]/div/div/div/div[3]/ul[1]/li[3]/button')
+                all_comments_mode.send_keys(Keys.ENTER)
 
             except TimeoutException:
-                print("답글 버튼 없음 타임아웃")
+                # print("타임아웃")
+                pass
 
-            
             try:
-                text = WebDriverWait(comment, 1).until(EC.presence_of_element_located((By.XPATH , f'//*[@id="{this_id}"]/div/p'))).text
-                reply_texts.append( text )
-                count += 1
-                # print(f"수집한 댓글 : {count}개")
-            except:
-                print("댓 못가져와서 패스")
-                continue
-
-            if is_exists_reply:
-                count2 = 0
-                reply_btn = comment.find_element_by_xpath(f'//*[@id="{this_id}"]/div/div/span[1]/button')
-                # reply_btn.click()
-                reply_btn.send_keys(Keys.ENTER)
+                element = WebDriverWait(driver, 2).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="alex-area"]/div/div/div/div[3]/div[1]/button')) 
+                )
                 
-                while True:
-                    try:
-                        element = WebDriverWait(driver, 1).until(
-                            EC.presence_of_element_located((By.XPATH, f'//*[@id="{this_id}"]/div/div[2]/div[3]/button')) 
-                        )
+                safe_bot_mode1 = div.find_element_by_xpath('//*[@id="alex-area"]/div/div/div/div[3]/div[1]/button')
+                safe_bot_mode1.click()
+                safe_bot_mode2 = div.find_element_by_xpath('//*[@id="alex-area"]/div/div/div[2]/div[2]/div/div[2]/dl/dd/button')
+                safe_bot_mode2.click()
+                safe_bot_mode3 = div.find_element_by_xpath('//*[@id="alex-area"]/div/div/div[2]/div[2]/div/a')
+                safe_bot_mode3.click()
 
-                    except TimeoutException:
-                        # print("답글 더보기 버튼 없음 타임아웃")
-                        break
+            except TimeoutException:
+                # print("타임아웃")
+                pass
+
+
+
+            while True:
+                try:
+                    element = WebDriverWait(driver, 2).until(
+                        EC.presence_of_element_located((By.XPATH, '//*[@id="alex-area"]/div/div/div/div[3]/div[3]/button')) 
+                    )
+
+                except TimeoutException:
+                    print("more 버튼 없음 타임아웃")
                     
-                    more_btn2 = div.find_element_by_xpath(f'//*[@id="{this_id}"]/div/div[2]/div[3]/button')
-                    # print("답글 더보기 클릭")
-                    more_btn2.click()
+                    break
+
                 
+                more_btn = div.find_element_by_xpath('//*[@id="alex-area"]/div/div/div/div[3]/div[3]/button')
+                # print("댓글 더보기 클릭")
+                more_btn.click()
+
+        
+            # comments = div.find_elements_by_xpath('//li[**starts-with(id,"comment")**]')
+            comments = div.find_elements_by_css_selector('li')
+            reply_count = 0
+
+            for i in range(len(comments)):
+                comment = comments[i]
+                this_id = comment.get_attribute('id')
+
+                if not this_id.startswith('comment'):
+                    continue
+
+                is_exists_reply = True
 
                 try:
                     element = WebDriverWait(driver, 1).until(
-                        EC.presence_of_element_located((By.XPATH, f'//*[@id="{this_id}"]/div/div[2]')) 
+                        EC.presence_of_element_located((By.XPATH, f'//*[@id="{this_id}"]/div/div/span[1]/button/span')) 
                     )
+                    reply_count = element.text
+                    if element.text == "답글 작성":
+                        is_exists_reply = False
 
                 except TimeoutException:
-                    # print("답글 없음 타임아웃")
-                    pass
-
-                try:
-                    element = WebDriverWait(driver, 0.1).until(
-                        EC.presence_of_element_located((By.XPATH, f'//*[@id="{this_id}"]/div/div[2]/div[2]/ul[2]')) 
-                    )
-
-                except TimeoutException:
-                    # print("답글 박스 타임아웃")
-                    pass
-
-                reply_div = div.find_element_by_xpath(f'//*[@id="{this_id}"]/div/div[2]')
-
-                replys = reply_div.find_elements_by_xpath(f'//*[@id="{this_id}"]/div/div[2]/div[2]/ul[2]/li')
-
-                for reply in replys:
-                    try:
-                        text = WebDriverWait(reply, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , 'div[class="txt_reply"] > p'))).text
-                        reply_texts.append( text )
-                        count+=1
-                        count2+=1
-                        # print(f"수집한 댓글 : {count}개\t{reply_count}개 중 {count2}개 수집")
-
-                    except:
-                        print("답글 못가져와서 패스")
-                        continue
+                    print("답글 버튼 없음 타임아웃")
 
                 
-                reply_btn.send_keys(Keys.ENTER)
-        # for i in reply_texts:
-        #     print(i)
-        # print(f'수집한 댓글 : {len(reply_texts)}')
-        
+                try:
+                    text = WebDriverWait(comment, 1).until(EC.presence_of_element_located((By.XPATH , f'//*[@id="{this_id}"]/div/p'))).text
+                    reply_texts.append( text )
+                    count += 1
+                    # print(f"수집한 댓글 : {count}개")
+                except:
+                    print("댓 못가져와서 패스")
+                    continue
 
-        news_dic[date[0:8]].update(
-            {
-                url: {
-                    'comments': reply_texts,
-                    'emotions': []
+                if is_exists_reply:
+                    count2 = 0
+                    reply_btn = comment.find_element_by_xpath(f'//*[@id="{this_id}"]/div/div/span[1]/button')
+                    # reply_btn.click()
+                    reply_btn.send_keys(Keys.ENTER)
+                    
+                    while True:
+                        try:
+                            element = WebDriverWait(driver, 1).until(
+                                EC.presence_of_element_located((By.XPATH, f'//*[@id="{this_id}"]/div/div[2]/div[3]/button')) 
+                            )
+
+                        except TimeoutException:
+                            # print("답글 더보기 버튼 없음 타임아웃")
+                            break
+                        
+                        more_btn2 = div.find_element_by_xpath(f'//*[@id="{this_id}"]/div/div[2]/div[3]/button')
+                        # print("답글 더보기 클릭")
+                        more_btn2.click()
+                    
+
+                    try:
+                        element = WebDriverWait(driver, 1).until(
+                            EC.presence_of_element_located((By.XPATH, f'//*[@id="{this_id}"]/div/div[2]')) 
+                        )
+
+                    except TimeoutException:
+                        # print("답글 없음 타임아웃")
+                        pass
+
+                    try:
+                        element = WebDriverWait(driver, 0.1).until(
+                            EC.presence_of_element_located((By.XPATH, f'//*[@id="{this_id}"]/div/div[2]/div[2]/ul[2]')) 
+                        )
+                        
+                        reply_div = div.find_element_by_xpath(f'//*[@id="{this_id}"]/div/div[2]')
+
+                        replys = reply_div.find_elements_by_xpath(f'//*[@id="{this_id}"]/div/div[2]/div[2]/ul[2]/li')
+
+                        for reply in replys:
+                            try:
+                                text = WebDriverWait(reply, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , 'div[class="txt_reply"] > p'))).text
+                                reply_texts.append( text )
+                                count+=1
+                                count2+=1
+                                # print(f"수집한 댓글 : {count}개\t{reply_count}개 중 {count2}개 수집")
+
+                            except:
+                                print("답글 못가져와서 패스")
+                                continue
+
+                        
+                        reply_btn.send_keys(Keys.ENTER)
+
+                    except TimeoutException:
+                        # print("답글 박스 타임아웃")
+                        pass
+
+            # for i in reply_texts:
+            #     print(i)
+            # print(f'수집한 댓글 : {len(reply_texts)}')
+            
+
+            news_dic[date[0:8]].update(
+                {
+                    url: {
+                        'comments': reply_texts,
+                        'emotions': []
+                    }
                 }
-            }
-        )
+            )
+        except TimeoutException:
+            print("하 이타임아웃 또떴네")
+            driver.quit()
+            continue
 
-    driver.close()
+    driver.quit()
     return

@@ -96,7 +96,7 @@ if __name__ == "__main__":
     driver_url = './chromedriver.exe'
 
     chrome_options = webdriver.ChromeOptions()
-    # chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--headless')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--privileged')
     chrome_options.add_argument('--incognito')
@@ -130,15 +130,34 @@ if __name__ == "__main__":
     daumCrawlNews(search, start_date, end_date, driver_url, chrome_options)
     
     # naverCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
-    naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
+    # naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
 
 
+    dic = {}
+    dic2 = {}
 
-    # dic = {}
+    with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json','r', encoding='utf8') as f:
+    # with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json','r', encoding='utf8') as f:
+        dic = json.load(f)
 
-    # with open(f'result/daum_news/news_{search}.json','r', encoding='utf8') as f:
-    #     dic = json.load(f)
+    for date in dic.keys():
+        if date[:6] not in dic2.keys():
+            dic2[date[:6]] = []
 
+        dic2[date[:6]].append(dic[date])
+
+
+    all = 0
+    for mon in dic2.keys():
+        count = 0
+        for date in dic2[mon]:
+            for dic3 in dic2[mon]:
+                for url, contain in dic3.items():
+                    for comment in contain['comments']:
+                        count += 1
+        all += count
+        print(f'{mon} : {count}')
+    print(f'all : {all}')
     exit()
 
     # 크롤링하여 저장된 json을 불러와서 이분그래프 생성
