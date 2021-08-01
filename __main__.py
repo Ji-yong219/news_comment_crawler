@@ -144,6 +144,8 @@ if __name__ == "__main__":
     # # with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json','r', encoding='utf8') as f:
     #     dic = json.load(f)
 
+    company = "naver"
+
     start_date_ = datetime.date(int(start_date[:4]), int(start_date[4:6]), int(start_date[6:]))
     end_date_ = datetime.date(int(end_date[:4]), int(end_date[4:6]), int(end_date[6:])) + datetime.timedelta(days=1)
 
@@ -156,7 +158,7 @@ if __name__ == "__main__":
 
     json_list = []
     for date in dic2.keys():
-        with open(f'result/daum_news/news_주한미군_daum_20200601_20210601__{date}.json','r', encoding='utf8') as f:
+        with open(f'result/{company}_news/news_주한미군_{company}_20200601_20210601__{date}.json','r', encoding='utf8') as f:
         # with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json','r', encoding='utf8') as f:
         # with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json','r', encoding='utf8') as f:
             dic2 = json.load(f)
@@ -182,7 +184,7 @@ if __name__ == "__main__":
         print(f'{mon} : {count}')
     print(f'all : {all}')
 
-    with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json', 'w', encoding='utf8') as f:
+    with open(f'result/{company}_news/news_{search}_{company}_{start_date}_{end_date}.json', 'w', encoding='utf8') as f:
         json.dump(dict(dic), f, indent=4, sort_keys=True, ensure_ascii=False)
 
     exit()
