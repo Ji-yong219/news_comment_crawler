@@ -12,12 +12,17 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, ElementNotInteractableException, StaleElementReferenceException
+from bs4 import BeautifulSoup as bs
+import grequests
 import datetime
 import json
+import sys
+import re
 
 from tqdm import trange
 
 from utils.util import *
+from utils.FeedbackCounter import FeedbackCounter
 
 
 from multiprocessing import Process, Manager, cpu_count
@@ -152,17 +157,52 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
             row = row.replace('\n', '').replace('\r', '')
             news_queue.append(row)
 
+    # headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36"}
+    
+    fbc = FeedbackCounter( len(news_queue) )
+    headers = {'User-Agent':'Mozilla/5.0'}
+    
+    rs = (grequests.get(news_queue[i], headers=headers, callback=fbc.feedback) for i in trange(len(news_queue), file=sys.stdout, desc='get Grequest'))
+    a = grequests.map(rs)
+
     news_queue_with_month = {}
 
-    for i in sorted(news_queue):
-        month = i[26:32]
-        if month in news_queue_with_month.keys():
-            news_queue_with_month[month].append(i)
-        else:
-            news_queue_with_month[month] = []
+    for i in trange(len(a), file=sys.stdout, desc='get html parser from bs4'):
+        soup = None
+
+        if a[i] is not None:
+            soup = (a[i].url,bs(a[i].content, 'html.parser'))
+
+        if soup is None or len(soup)<2:
+            continue
+
+        url, soup = soup
+
+        if soup is None:
+            print("soup 없어서 continue")
+            continue
+
+        
+        try:
+            date = soup.select('span[class="t11"]')[0]
+            date_ = date.get_text()
+            
+            p = re.compile(r"\d+[.]+\d+[.]+\d+[.]")
+            m = p.search(date_)
+            date__ = m.group(0).replace('.', '')
+            month = date__[:6]
+            
+            if month in news_queue_with_month.keys():
+                news_queue_with_month[month].append((date__, url))
+            else:
+                news_queue_with_month[month] = []
+
+        except AttributeError as e:
+            continue
+
+
 
     split_index_count = 10
-    
     
     for i in news_queue_with_month.keys():
 
@@ -172,14 +212,14 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
 
         
         for idx2, j in enumerate(news_queue_with_month[i], 1):
-            for jj in j:
-                if jj[26:34] not in news_dic.keys():
-                    news_dic[jj[26:34]] = manager.dict()
+            for date, jj in j:
+                if date not in news_dic.keys():
+                    news_dic[date] = manager.dict()
 
             # title_list = np.array_split(np.array(news_queue), num_of_cpu)
             title_list = manager.Queue()
 
-            [title_list.put(ii) for ii in j]
+            [title_list.put(ii) for date, ii in j]
             
             processes = []
             
@@ -218,6 +258,7 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
 
 def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic, split_date, now_split_index, split_index_count):
     driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
+    count_ = 0
 
     # for ii, url in enumerate(news_url_list, 1):
     
@@ -230,6 +271,7 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic, 
 
 
             count = 0
+            count_ += 1
             # print(f"{idx+1}번 프로세스 네이버뉴스 댓글 크롤링 시작 :{url}\t{ii}/{len(news_url_list)}")
             print(f"{idx+1}번 프로세스 다음뉴스 댓글 크롤링 시작 :{url}\t{count_}/{news_url_list.qsize()}개남음\t--{split_date} 중 {now_split_index}/{split_index_count}")
 
@@ -255,12 +297,16 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic, 
                 continue
 
 
-            date = driver.find_element_by_css_selector('#main_content span[class="t11"]').text[:10].strip().replace('.', '')
-            if date not in news_dic.keys():
-                news_dic[date] = []
+            date = driver.find_element_by_css_selector('#main_content span[class="t11"]')
+            date_ = date.text
+            
+            p = re.compile(r"\d+[.]+\d+[.]+\d+[.]")
+            m = p.search(date_)
+            date__ = m.group(0).replace('.', '')
+            # if date not in news_dic.keys():
+            #     news_dic[date] = []
 
             
-            # all_comments_mode = div.find_element_by_xpath('//*[@id="cbox_module_wai_u_cbox_sort_option_tab2"]')
             
             try:
                 all_comments_mode = WebDriverWait(div, 2).until(
@@ -288,7 +334,8 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic, 
                     
                     more_btn = driver.find_element_by_xpath('//*[@id="cbox_module"]/div[2]/div[9]/a')
                     print("댓글 더보기 클릭")
-                    more_btn.click()
+                    # more_btn.click()
+                    more_btn.send_keys(Keys.ENTER)
 
                 except TimeoutException:
                     print("more 버튼 없음 타임아웃")
@@ -348,10 +395,10 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic, 
                 
                 try:
                     text = WebDriverWait(comment, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , f'div[class="u_cbox_text_wrap"]'))).text
-                    if text != "작성자에 의해 삭제된 댓글입니다.":
+                    if text != "작성자에 의해 삭제된 댓글입니다." and text != "클린봇이 부적절한 표현을 감지한 댓글입니다." and text != "운영규정 미준수로 인해 삭제된 댓글입니다.":
                         reply_texts.append( text )
                         count += 1
-                        print(f"수집한 댓글 : {count}개\t{text}")
+                        # print(f"수집한 댓글 : {count}개\t{text}")
                 except:
                     print("댓 못가져와서 패스")
                     continue
@@ -384,7 +431,7 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic, 
                         for reply in replys:
                             try:
                                 text = WebDriverWait(reply, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , 'span[class="u_cbox_contents"] > p'))).text
-                                if text != "작성자에 의해 삭제된 댓글입니다.":
+                                if text != "작성자에 의해 삭제된 댓글입니다." and text != "클린봇이 부적절한 표현을 감지한 댓글입니다." and text != "운영규정 미준수로 인해 삭제된 댓글입니다.":
                                     reply_texts.append( text )
                                     count+=1
                                     count2+=1
@@ -402,7 +449,7 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic, 
             #     print(i)
             # print(f'수집한 댓글 : {len(reply_texts)}')
             
-            news_dic[date[0:8]].update(
+            news_dic[date__[0:8]].update(
                 {
                     url: {
                         'comments': reply_texts,

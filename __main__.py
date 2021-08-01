@@ -106,8 +106,8 @@ if __name__ == "__main__":
     # kr은 requests로 동기식, us는 grequests와 async로 비동기식 (kr은 비동기가 안먹힘(다음뉴스 500 오류))
 
     search = "주한미군"
-    start_date = "20200601"
-    # start_date = "20210530"
+    # start_date = "20200601"
+    start_date = "20210530"
     end_date = "20210601"
 
 
@@ -158,7 +158,7 @@ if __name__ == "__main__":
 
     json_list = []
     for date in dic2.keys():
-        with open(f'result/{company}_news/news_주한미군_{company}_20200601_20210601__{date}.json','r', encoding='utf8') as f:
+        with open(f'result/{company}_news/news_주한미군_{company}_{start_date}_{end_date}__{date}.json','r', encoding='utf8') as f:
         # with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json','r', encoding='utf8') as f:
         # with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json','r', encoding='utf8') as f:
             dic2 = json.load(f)
