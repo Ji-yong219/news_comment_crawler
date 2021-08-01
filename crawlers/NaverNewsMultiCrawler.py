@@ -230,7 +230,8 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic, 
 
 
             count = 0
-            print(f"{idx+1}번 프로세스 네이버뉴스 댓글 크롤링 시작 :{url}\t{ii}/{len(news_url_list)}")
+            # print(f"{idx+1}번 프로세스 네이버뉴스 댓글 크롤링 시작 :{url}\t{ii}/{len(news_url_list)}")
+            print(f"{idx+1}번 프로세스 다음뉴스 댓글 크롤링 시작 :{url}\t{count_}/{news_url_list.qsize()}개남음\t--{split_date} 중 {now_split_index}/{split_index_count}")
 
             reply_texts = []
 
@@ -399,7 +400,7 @@ def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic, 
                     # reply_btn.send_keys(Keys.ENTER)
             # for i in reply_texts:
             #     print(i)
-            print(f'수집한 댓글 : {len(reply_texts)}')
+            # print(f'수집한 댓글 : {len(reply_texts)}')
             
             news_dic[date[0:8]].update(
                 {

@@ -130,7 +130,7 @@ if __name__ == "__main__":
     # daumCrawlNews(search, start_date, end_date, driver_url, chrome_options)
     
     # naverCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
-    # naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
+    naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
 
     # exit()
 
