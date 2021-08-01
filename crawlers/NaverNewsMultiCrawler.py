@@ -134,15 +134,15 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
     num_of_cpu = cpu_count()
 
     manager = Manager()
-    news_dic = manager.dict()
+    # news_dic = manager.dict()
 
-    start_date_ = datetime.date(int(start_date[:4]), int(start_date[4:6]), int(start_date[6:]))
-    end_date_ = datetime.date(int(end_date[:4]), int(end_date[4:6]), int(end_date[6:])) + datetime.timedelta(days=1)
+    # start_date_ = datetime.date(int(start_date[:4]), int(start_date[4:6]), int(start_date[6:]))
+    # end_date_ = datetime.date(int(end_date[:4]), int(end_date[4:6]), int(end_date[6:])) + datetime.timedelta(days=1)
 
-    date_list = [str(i).replace('-', '')[0:8] for i in daterange(start_date_, end_date_)]
+    # date_list = [str(i).replace('-', '')[0:8] for i in daterange(start_date_, end_date_)]
 
-    for date in date_list:
-        news_dic[date] = manager.dict()
+    # for date in date_list:
+    #     news_dic[date] = manager.dict()
 
     news_queue = []
 
@@ -152,225 +152,267 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
             row = row.replace('\n', '').replace('\r', '')
             news_queue.append(row)
 
-    
-    title_list = np.array_split(np.array(news_queue), num_of_cpu)
-    
-    processes = []
-    
-    for idx in range(num_of_cpu):
-        process = Process(target=crawlNewsProcess,
-            args=(
-                idx,
-                driver_url,
-                chrome_options,
-                title_list[idx],
-                news_dic
-            )
-        )
-        
-        processes.append(process)
-        process.start()
-        
-    
-    for process in processes:
-        process.join()
-        
-        
-    for key in news_dic.keys():
-        if news_dic[key] != {}:
-            news_dic[key] = dict(news_dic[key])
+    news_queue_with_month = {}
+
+    for i in sorted(news_queue):
+        month = i[26:32]
+        if month in news_queue_with_month.keys():
+            news_queue_with_month[month].append(i)
         else:
-            news_dic[key] = None
+            news_queue_with_month[month] = []
+
+    split_index_count = 10
     
-    with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json', 'w', encoding='utf8') as f:
-        json.dump(dict(news_dic), f, indent=4, sort_keys=True, ensure_ascii=False)
+    
+    for i in news_queue_with_month.keys():
+
+        news_queue_with_month[i] = list(np.array_split(np.array(news_queue_with_month[i]), split_index_count))
+        
+        news_dic = manager.dict()
+
+        
+        for idx2, j in enumerate(news_queue_with_month[i], 1):
+            for jj in j:
+                if jj[26:34] not in news_dic.keys():
+                    news_dic[jj[26:34]] = manager.dict()
+
+            # title_list = np.array_split(np.array(news_queue), num_of_cpu)
+            title_list = manager.Queue()
+
+            [title_list.put(ii) for ii in j]
+            
+            processes = []
+            
+            for idx in range(num_of_cpu):
+                process = Process(target=crawlNewsProcess,
+                    args=(
+                        idx,
+                        driver_url,
+                        chrome_options,
+                        title_list,
+                        news_dic,
+                        i,
+                        idx2,
+                        split_index_count
+                    )
+                )
+                
+                processes.append(process)
+                process.start()
+                
+            
+            for process in processes:
+                process.join()
+                
+                
+            for key in news_dic.keys():
+                if news_dic[key] != {}:
+                    news_dic[key] = dict(news_dic[key])
+                else:
+                    news_dic[key] = None
+        
+        with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}__{i}.json', 'w', encoding='utf8') as f:
+            json.dump(dict(news_dic), f, indent=4, sort_keys=True, ensure_ascii=False)
 
 
 
 def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic):
     driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
 
-    for ii, url in enumerate(news_url_list, 1):
-        count = 0
-        print(f"{idx+1}번 프로세스 네이버뉴스 댓글 크롤링 시작 :{url}\t{ii}/{len(news_url_list)}")
-
-        reply_texts = []
-
-        driver.get(url)
-
+    # for ii, url in enumerate(news_url_list, 1):
+    
+    while True:
         try:
-            element = WebDriverWait(driver, 2).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module"]/div[2]/div[2]/ul/li[1]/span')) 
-            )
-
-        except TimeoutException:
-            print("타임아웃")
-            
-            continue
-
-        div = driver.find_element_by_xpath('//*[@id="cbox_module_wai_u_cbox_content_wrap_tabpanel"]')
-
-        comment_count = driver.find_element_by_xpath('//*[@id="cbox_module"]/div[2]/div[2]/ul/li[1]/span')
-
-        if comment_count == '0':
-            continue
+            if news_url_list.empty():
+                break
+                
+            url = news_url_list.get()
 
 
-        date = driver.find_element_by_css_selector('#main_content span[class="t11"]').text[:10].strip().replace('.', '')
-        if date not in news_dic.keys():
-            news_dic[date] = []
+            count = 0
+            print(f"{idx+1}번 프로세스 네이버뉴스 댓글 크롤링 시작 :{url}\t{ii}/{len(news_url_list)}")
 
-        
-        # all_comments_mode = div.find_element_by_xpath('//*[@id="cbox_module_wai_u_cbox_sort_option_tab2"]')
-        
-        try:
-            all_comments_mode = WebDriverWait(div, 2).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module_wai_u_cbox_sort_option_tab2')) 
-            )
-            all_comments_mode.click()
+            reply_texts = []
 
-        except TimeoutException:
-            print("타임아웃")
-            
-            pass
+            driver.get(url)
 
-        safe_bot_mode1 = div.find_element_by_xpath('//*[@id="cbox_module"]/div[2]/div[7]/a')
-        safe_bot_mode1.click()
-        safe_bot_mode2 = div.find_element_by_xpath('//*[@id="cleanbot_dialog_checkbox_cbox_module"]')
-        safe_bot_mode2.click()
-        safe_bot_mode3 = div.find_element_by_xpath('/html/body/div[3]/div/div[2]/div[4]/button')
-        safe_bot_mode3.click()
-
-        while True:
             try:
                 element = WebDriverWait(driver, 2).until(
-                    EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module"]/div[2]/div[9]/a')) 
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module"]/div[2]/div[2]/ul/li[1]/span')) 
                 )
-                
-                more_btn = driver.find_element_by_xpath('//*[@id="cbox_module"]/div[2]/div[9]/a')
-                print("댓글 더보기 클릭")
-                more_btn.click()
 
             except TimeoutException:
-                print("more 버튼 없음 타임아웃")
+                print("타임아웃")
                 
-                break
-
-            except ElementNotInteractableException:
-                print("more 버튼 없음")
-                
-                break
-
-            
-
-
-
-        try:
-            element = WebDriverWait(driver, 1).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module"]/div[2]/div[2]/ul/li[1]/span')) 
-            )
-
-        except TimeoutException:
-            print("타임아웃")
-            
-            break
-
-        div = driver.find_element_by_xpath('//*[@id="cbox_module_wai_u_cbox_content_wrap_tabpanel"]')
-    
-        # comments = div.find_elements_by_xpath('//li[**starts-with(id,"comment")**]')
-        comments = div.find_elements_by_css_selector('ul>li')
-        reply_count = 0
-
-        for i in range(len(comments)):
-            comment = comments[i]
-            this_class = comment.get_attribute('class')
-
-            if "comment_" not in this_class:
                 continue
 
-            this_class = this_class.split(' ')[1]
-            # print(f'this_class : {this_class}')
+            div = driver.find_element_by_xpath('//*[@id="cbox_module_wai_u_cbox_content_wrap_tabpanel"]')
 
-            is_exists_reply = True
+            comment_count = driver.find_element_by_xpath('//*[@id="cbox_module"]/div[2]/div[2]/ul/li[1]/span')
+
+            if comment_count == '0':
+                continue
+
+
+            date = driver.find_element_by_css_selector('#main_content span[class="t11"]').text[:10].strip().replace('.', '')
+            if date not in news_dic.keys():
+                news_dic[date] = []
+
+            
+            # all_comments_mode = div.find_element_by_xpath('//*[@id="cbox_module_wai_u_cbox_sort_option_tab2"]')
+            
+            try:
+                all_comments_mode = WebDriverWait(div, 2).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module_wai_u_cbox_sort_option_tab2')) 
+                )
+                all_comments_mode.click()
+
+            except TimeoutException:
+                print("타임아웃")
+                
+                pass
+
+            safe_bot_mode1 = div.find_element_by_xpath('//*[@id="cbox_module"]/div[2]/div[7]/a')
+            safe_bot_mode1.click()
+            safe_bot_mode2 = div.find_element_by_xpath('//*[@id="cleanbot_dialog_checkbox_cbox_module"]')
+            safe_bot_mode2.click()
+            safe_bot_mode3 = div.find_element_by_xpath('/html/body/div[3]/div/div[2]/div[4]/button')
+            safe_bot_mode3.click()
+
+            while True:
+                try:
+                    element = WebDriverWait(driver, 2).until(
+                        EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module"]/div[2]/div[9]/a')) 
+                    )
+                    
+                    more_btn = driver.find_element_by_xpath('//*[@id="cbox_module"]/div[2]/div[9]/a')
+                    print("댓글 더보기 클릭")
+                    more_btn.click()
+
+                except TimeoutException:
+                    print("more 버튼 없음 타임아웃")
+                    
+                    break
+
+                except ElementNotInteractableException:
+                    print("more 버튼 없음")
+                    
+                    break
+
+                
+
 
 
             try:
-                element = WebDriverWait(comment, 1).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, f'a[class="u_cbox_btn_reply"]')) 
+                element = WebDriverWait(driver, 1).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="cbox_module"]/div[2]/div[2]/ul/li[1]/span')) 
                 )
-                reply_count = element.text
-                if element.text == "답글0":
+
+            except TimeoutException:
+                print("타임아웃")
+                
+                break
+
+            div = driver.find_element_by_xpath('//*[@id="cbox_module_wai_u_cbox_content_wrap_tabpanel"]')
+        
+            # comments = div.find_elements_by_xpath('//li[**starts-with(id,"comment")**]')
+            comments = div.find_elements_by_css_selector('ul>li')
+            reply_count = 0
+
+            for i in range(len(comments)):
+                comment = comments[i]
+                this_class = comment.get_attribute('class')
+
+                if "comment_" not in this_class:
+                    continue
+
+                this_class = this_class.split(' ')[1]
+                # print(f'this_class : {this_class}')
+
+                is_exists_reply = True
+
+
+                try:
+                    element = WebDriverWait(comment, 1).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, f'a[class="u_cbox_btn_reply"]')) 
+                    )
+                    reply_count = element.text
+                    if element.text == "답글0":
+                        is_exists_reply = False
+
+                except TimeoutException:
+                    print("답글 버튼 없음 타임아웃")
                     is_exists_reply = False
 
-            except TimeoutException:
-                print("답글 버튼 없음 타임아웃")
-                is_exists_reply = False
-
-            
-            try:
-                text = WebDriverWait(comment, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , f'div[class="u_cbox_text_wrap"]'))).text
-                if text != "작성자에 의해 삭제된 댓글입니다.":
-                    reply_texts.append( text )
-                    count += 1
-                    print(f"수집한 댓글 : {count}개\t{text}")
-            except:
-                print("댓 못가져와서 패스")
-                continue
-
-            if is_exists_reply:
-                count2 = 0
-                reply_btn = comment.find_element_by_css_selector(f'a[class="u_cbox_btn_reply"]')
-                # reply_btn.click()
-                reply_btn.send_keys(Keys.ENTER)
                 
-                while True:
-                    try:
-                        element = WebDriverWait(comment, 1).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, f'a[class="u_cbox_btn_more"]')) 
-                        )
-                        
-                        more_btn2 = comment.find_element_by_css_selector(f'a[class="u_cbox_btn_more"]')
-                        # print("답글 더보기 클릭")
-                        more_btn2.send_keys(Keys.ENTER)
-
-                    except:
-                        # print("답글 더보기 버튼 없음 타임아웃")
-                        break
-
-
-                replys = []
                 try:
-                    replys = WebDriverWait(reply, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , f'li[class="u_cbox_comment"]')))
+                    text = WebDriverWait(comment, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , f'div[class="u_cbox_text_wrap"]'))).text
+                    if text != "작성자에 의해 삭제된 댓글입니다.":
+                        reply_texts.append( text )
+                        count += 1
+                        print(f"수집한 댓글 : {count}개\t{text}")
+                except:
+                    print("댓 못가져와서 패스")
+                    continue
 
-                    for reply in replys:
+                if is_exists_reply:
+                    count2 = 0
+                    reply_btn = comment.find_element_by_css_selector(f'a[class="u_cbox_btn_reply"]')
+                    # reply_btn.click()
+                    reply_btn.send_keys(Keys.ENTER)
+                    
+                    while True:
                         try:
-                            text = WebDriverWait(reply, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , 'span[class="u_cbox_contents"] > p'))).text
-                            if text != "작성자에 의해 삭제된 댓글입니다.":
-                                reply_texts.append( text )
-                                count+=1
-                                count2+=1
-                                print(f"수집한 댓글 : {count}개\t{reply_count}개 중 {count2}개 수집")
+                            element = WebDriverWait(comment, 1).until(
+                                EC.presence_of_element_located((By.CSS_SELECTOR, f'a[class="u_cbox_btn_more"]')) 
+                            )
+                            
+                            more_btn2 = comment.find_element_by_css_selector(f'a[class="u_cbox_btn_more"]')
+                            # print("답글 더보기 클릭")
+                            more_btn2.send_keys(Keys.ENTER)
 
                         except:
-                            print("답글 못가져와서 패스")
-                            continue
-                except:
-                    pass
+                            # print("답글 더보기 버튼 없음 타임아웃")
+                            break
 
-                
-                # reply_btn.send_keys(Keys.ENTER)
-        # for i in reply_texts:
-        #     print(i)
-        print(f'수집한 댓글 : {len(reply_texts)}')
-        
-        news_dic[date[0:8]].update(
-            {
-                url: {
-                    'comments': reply_texts,
-                    'emotions': []
+
+                    replys = []
+                    try:
+                        replys = WebDriverWait(reply, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , f'li[class="u_cbox_comment"]')))
+
+                        for reply in replys:
+                            try:
+                                text = WebDriverWait(reply, 1).until(EC.presence_of_element_located((By.CSS_SELECTOR , 'span[class="u_cbox_contents"] > p'))).text
+                                if text != "작성자에 의해 삭제된 댓글입니다.":
+                                    reply_texts.append( text )
+                                    count+=1
+                                    count2+=1
+                                    print(f"수집한 댓글 : {count}개\t{reply_count}개 중 {count2}개 수집")
+
+                            except:
+                                print("답글 못가져와서 패스")
+                                continue
+                    except:
+                        pass
+
+                    
+                    # reply_btn.send_keys(Keys.ENTER)
+            # for i in reply_texts:
+            #     print(i)
+            print(f'수집한 댓글 : {len(reply_texts)}')
+            
+            news_dic[date[0:8]].update(
+                {
+                    url: {
+                        'comments': reply_texts,
+                        'emotions': []
+                    }
                 }
-            }
-        )
+            )
+        except TimeoutException:
+            print("하 이타임아웃 또떴네")
+            driver.quit()
+            continue
 
     driver.quit()
     return

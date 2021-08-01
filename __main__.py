@@ -19,7 +19,7 @@ from crawlers.NaverNewsMultiCrawler import crawlLinks as naverCrawlLinks, crawlN
 from utils.util import *
 
 import json
-from datetime import datetime
+import datetime
 
 import numpy as np
  
@@ -127,20 +127,43 @@ if __name__ == "__main__":
 
 
     # daumCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
-    daumCrawlNews(search, start_date, end_date, driver_url, chrome_options)
+    # daumCrawlNews(search, start_date, end_date, driver_url, chrome_options)
     
     # naverCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
     # naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
 
-    exit()
+    # exit()
 
     dic = {}
     dic2 = {}
 
-    with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json','r', encoding='utf8') as f:
-    # with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json','r', encoding='utf8') as f:
-        dic = json.load(f)
 
+    
+    # with open('result/daum_news/news_주한미군_daum_20200601_20210601__202006.json','r', encoding='utf8') as f:
+    # # with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json','r', encoding='utf8') as f:
+    # # with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json','r', encoding='utf8') as f:
+    #     dic = json.load(f)
+
+    start_date_ = datetime.date(int(start_date[:4]), int(start_date[4:6]), int(start_date[6:]))
+    end_date_ = datetime.date(int(end_date[:4]), int(end_date[4:6]), int(end_date[6:])) + datetime.timedelta(days=1)
+
+    date_list = [str(i).replace('-', '')[0:8] for i in daterange(start_date_, end_date_)]
+
+
+    for date in date_list:
+        if date[:6] not in dic2.keys():
+            dic2[date[:6]] = []
+
+    json_list = []
+    for date in dic2.keys():
+        with open(f'result/daum_news/news_주한미군_daum_20200601_20210601__{date}.json','r', encoding='utf8') as f:
+        # with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json','r', encoding='utf8') as f:
+        # with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json','r', encoding='utf8') as f:
+            dic2 = json.load(f)
+
+        dic.update(dic2)
+
+    dic2 = {}
     for date in dic.keys():
         if date[:6] not in dic2.keys():
             dic2[date[:6]] = []
@@ -158,6 +181,10 @@ if __name__ == "__main__":
         all += count
         print(f'{mon} : {count}')
     print(f'all : {all}')
+
+    with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json', 'w', encoding='utf8') as f:
+        json.dump(dict(dic), f, indent=4, sort_keys=True, ensure_ascii=False)
+
     exit()
 
     # 크롤링하여 저장된 json을 불러와서 이분그래프 생성
