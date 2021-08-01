@@ -216,7 +216,7 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
 
 
 
-def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic):
+def crawlNewsProcess( idx, driver_url, chrome_options, news_url_list, news_dic, split_date, now_split_index, split_index_count):
     driver = webdriver.Chrome(driver_url, chrome_options=chrome_options)
 
     # for ii, url in enumerate(news_url_list, 1):
