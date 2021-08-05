@@ -197,7 +197,7 @@ def crawlNews( search, start_date, end_date, driver_url, chrome_options):
             else:
                 news_queue_with_month[month] = []
 
-        except AttributeError as e:
+        except :
             continue
 
 

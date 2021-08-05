@@ -5,11 +5,11 @@ import time
 from selenium import webdriver
 
 # from konlpy.tag import Hannanum
-from eunjeon import Mecab
+# from eunjeon import Mecab
 
 # han = Hannanum()#han.nouns(text)
-mcb = Mecab()
-morphology_analyzer = mcb
+# mcb = Mecab()
+# morphology_analyzer = mcb
 
 # from crawlers.DaumNewsCrawler import DaumCrawler
 # from crawlers.NaverNewsCrawler import NaverCrawler
@@ -106,8 +106,8 @@ if __name__ == "__main__":
     # kr은 requests로 동기식, us는 grequests와 async로 비동기식 (kr은 비동기가 안먹힘(다음뉴스 500 오류))
 
     search = "주한미군"
-    # start_date = "20200601"
-    start_date = "20210530"
+    start_date = "20200601"
+    # start_date = "20210530"
     end_date = "20210601"
 
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     # daumCrawlNews(search, start_date, end_date, driver_url, chrome_options)
     
     # naverCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
-    naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
+    # naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
 
     # exit()
 
@@ -144,8 +144,53 @@ if __name__ == "__main__":
     # # with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json','r', encoding='utf8') as f:
     #     dic = json.load(f)
 
-    company = "naver"
 
+
+    # company = "naver"
+
+    # start_date_ = datetime.date(int(start_date[:4]), int(start_date[4:6]), int(start_date[6:]))
+    # end_date_ = datetime.date(int(end_date[:4]), int(end_date[4:6]), int(end_date[6:])) + datetime.timedelta(days=1)
+
+    # date_list = [str(i).replace('-', '')[0:8] for i in daterange(start_date_, end_date_)]
+
+
+    # for date in date_list:
+    #     if date[:6] not in dic2.keys():
+    #         dic2[date[:6]] = []
+
+    # json_list = []
+    # for date in dic2.keys():
+    #     with open(f'result/{company}_news/news_주한미군_{company}_{start_date}_{end_date}__{date}.json','r', encoding='utf8') as f:
+    #     # with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json','r', encoding='utf8') as f:
+    #     # with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json','r', encoding='utf8') as f:
+    #         dic2 = json.load(f)
+
+    #     dic.update(dic2)
+
+    # dic2 = {}
+    # for date in dic.keys():
+    #     if date[:6] not in dic2.keys():
+    #         dic2[date[:6]] = []
+
+    #     dic2[date[:6]].append(dic[date])
+
+
+    # all = 0
+    # for mon in dic2.keys():
+    #     count = 0
+    #     for dic3 in dic2[mon]:
+    #         for url, contain in dic3.items():
+    #             for comment in contain['comments']:
+    #                 count += 1
+    #     all += count
+    #     print(f'{mon} : {count}')
+    # print(f'all : {all}')
+
+    # with open(f'result/{company}_news/news_{search}_{company}_{start_date}_{end_date}.json', 'w', encoding='utf8') as f:
+    #     json.dump(dict(dic), f, indent=4, sort_keys=True, ensure_ascii=False)
+
+        
+    dic = {}
     start_date_ = datetime.date(int(start_date[:4]), int(start_date[4:6]), int(start_date[6:]))
     end_date_ = datetime.date(int(end_date[:4]), int(end_date[4:6]), int(end_date[6:])) + datetime.timedelta(days=1)
 
@@ -153,17 +198,17 @@ if __name__ == "__main__":
 
 
     for date in date_list:
-        if date[:6] not in dic2.keys():
-            dic2[date[:6]] = []
+        if date not in dic.keys():
+            dic[date] = {}
 
-    json_list = []
-    for date in dic2.keys():
-        with open(f'result/{company}_news/news_주한미군_{company}_{start_date}_{end_date}__{date}.json','r', encoding='utf8') as f:
-        # with open(f'result/daum_news/news_{search}_daum_{start_date}_{end_date}.json','r', encoding='utf8') as f:
-        # with open(f'result/naver_news/news_{search}_naver_{start_date}_{end_date}.json','r', encoding='utf8') as f:
-            dic2 = json.load(f)
+    all = 0
+    for date in dic.keys():
+        for company in ["daum", "naver"]:
+            with open(f'result/{company}_news/news_주한미군_{company}_{start_date}_{end_date}__{date[:6]}.json','r', encoding='utf8') as f:
+                dic2 = json.load(f)
 
-        dic.update(dic2)
+            dic[date].update(dic2[date])
+
 
     dic2 = {}
     for date in dic.keys():
@@ -183,38 +228,6 @@ if __name__ == "__main__":
         all += count
         print(f'{mon} : {count}')
     print(f'all : {all}')
-
-    with open(f'result/{company}_news/news_{search}_{company}_{start_date}_{end_date}.json', 'w', encoding='utf8') as f:
+    with open(f'result/news_{search}_all_{start_date}_{end_date}.json', 'w', encoding='utf8') as f:
         json.dump(dict(dic), f, indent=4, sort_keys=True, ensure_ascii=False)
-
     exit()
-
-    # 크롤링하여 저장된 json을 불러와서 이분그래프 생성
-
-    trump_kr = {}
-    biden_kr = {}
-    trump_us = {}
-    biden_us = {}
-
-    with open('result/bigkinds/news_트럼프.json', 'r', encoding='utf8') as f:
-        trump_kr = json.load(f)
-        
-    with open('result/bigkinds/news_바이든.json', 'r', encoding='utf8') as f:
-        biden_kr = json.load(f)
-        
-    # with open(f'result/washingtonpost/news_trans_trump.json', 'r', encoding='utf8') as f:
-        # trump_us = json.load(f)
-        
-    # with open(f'result/washingtonpost/news_trans_biden.json', 'r', encoding='utf8') as f:
-        # biden_us = json.load(f)
-        
-    with open(f'result/newyorktimes/news_trans_trump.json', 'r', encoding='utf8') as f:
-        trump_us = json.load(f)
-        
-    with open(f'result/newyorktimes/news_trans_biden.json', 'r', encoding='utf8') as f:
-        biden_us = json.load(f)
-
-    print(f'trump: {len(trump_us)}')
-    print(f'biden: {len(biden_us)}')
-    print(f'트럼프: {len(trump_kr)}')
-    print(f'바이든: {len(biden_kr)}')
