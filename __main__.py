@@ -11,8 +11,8 @@ from selenium import webdriver
 # mcb = Mecab()
 # morphology_analyzer = mcb
 
-# from crawlers.DaumNewsCrawler import DaumCrawler
-# from crawlers.NaverNewsCrawler import NaverCrawler
+from crawlers.DaumNewsCrawler import DaumCrawler
+from crawlers.NaverNewsCrawler import NaverCrawler
 from crawlers.DaumNewsMultiCrawler import crawlLinks as daumCrawlLinks, crawlNews as daumCrawlNews
 from crawlers.NaverNewsMultiCrawler import crawlLinks as naverCrawlLinks, crawlNews as naverCrawlNews
 
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     driver_url = './chromedriver.exe'
 
     chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_argument('--headless')
+    # chrome_options.add_argument('--headless')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--privileged')
     chrome_options.add_argument('--incognito')
@@ -105,10 +105,10 @@ if __name__ == "__main__":
     # selenium으로 크롤링하여 저장된 링크를 가지고 requests로 다시 크롤링하여 json으로 저장
     # kr은 requests로 동기식, us는 grequests와 async로 비동기식 (kr은 비동기가 안먹힘(다음뉴스 500 오류))
 
-    search = "주한미군"
-    start_date = "20200601"
+    search = "포트폴리오"
+    start_date = "20210801"
     # start_date = "20210530"
-    end_date = "20210601"
+    end_date = "20211201"
 
 
     
@@ -116,23 +116,23 @@ if __name__ == "__main__":
 
 
     # # 크롤러 객체 생성
-    # daum_crawler = DaumCrawler(driver_url, chrome_options)
-    # naver_crawler = NaverCrawler(driver_url, chrome_options)
+    daum_crawler = DaumCrawler(driver_url, chrome_options)
+    naver_crawler = NaverCrawler(driver_url, chrome_options)
 
-    # daum_crawler.crawlLinks(search, start_date, end_date) # 링크 크롤링(selenium)
-    # daum_crawler.crawlNews(search, start_date, end_date) # 뉴스 크롤링(async+grequest+bs4)
+    daum_crawler.crawlLinks(search, start_date, end_date) # 링크 크롤링(selenium)
+    daum_crawler.crawlNews(search, start_date, end_date) # 뉴스 크롤링(async+grequest+bs4)
     
-    # naver_crawler.crawlLinks(search, start_date, end_date) # 링크 크롤링(selenium)
-    # naver_crawler.crawlNews(search, start_date, end_date) # 뉴스 크롤링(async+grequest+bs4)
+    naver_crawler.crawlLinks(search, start_date, end_date) # 링크 크롤링(selenium)
+    naver_crawler.crawlNews(search, start_date, end_date) # 뉴스 크롤링(async+grequest+bs4)
 
 
-    # daumCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
-    # daumCrawlNews(search, start_date, end_date, driver_url, chrome_options)
+    daumCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
+    daumCrawlNews(search, start_date, end_date, driver_url, chrome_options)
     
-    # naverCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
-    # naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
+    naverCrawlLinks(search, start_date, end_date, driver_url, chrome_options)
+    naverCrawlNews(search, start_date, end_date, driver_url, chrome_options)
 
-    # exit()
+    exit()
 
     dic = {}
     dic2 = {}
